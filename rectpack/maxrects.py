@@ -1,19 +1,17 @@
-from .pack_algo import PackingAlgorithm
-from .geometry import Rectangle
-import itertools
 import collections
+import itertools
 import operator
 
+from .geometry import Rectangle
+from .pack_algo import PackingAlgorithm
 
 first_item = operator.itemgetter(0)
 
 
-
 class MaxRects(PackingAlgorithm):
-
     def __init__(self, width, height, rot=True, *args, **kwargs):
         super(MaxRects, self).__init__(width, height, rot, *args, **kwargs)
-   
+
     def _rect_fitness(self, max_rect, width, height):
         """
         Arguments:
@@ -23,14 +21,14 @@ class MaxRects(PackingAlgorithm):
 
         Returns:
             None: Rectangle couldn't be placed into max_rect
-            integer, float: fitness value 
+            integer, float: fitness value
         """
         if width <= max_rect.width and height <= max_rect.height:
             return 0
         else:
             return None
 
-    def _select_position(self, w, h): 
+    def _select_position(self, w, h, force_rotate=False):
         """
         Find max_rect with best fitness for placing a rectangle
         of dimentsions w*h
@@ -48,18 +46,24 @@ class MaxRects(PackingAlgorithm):
             return None, None
 
         # Normal rectangle
-        fitn = ((self._rect_fitness(m, w, h), w, h, m) for m in self._max_rects 
-                if self._rect_fitness(m, w, h) is not None)
+        fitn = (
+            (self._rect_fitness(m, w, h), w, h, m)
+            for m in self._max_rects
+            if self._rect_fitness(m, w, h) is not None
+        )
 
         # Rotated rectangle
-        fitr = ((self._rect_fitness(m, h, w), h, w, m) for m in self._max_rects 
-                if self._rect_fitness(m, h, w) is not None)
+        fitr = (
+            (self._rect_fitness(m, h, w), h, w, m)
+            for m in self._max_rects
+            if self._rect_fitness(m, h, w) is not None
+        )
 
-        if not self.rot:
+        if not self.rot and not force_rotate:
             fitr = []
 
         fit = itertools.chain(fitn, fitr)
-        
+
         try:
             _, w, h, m = min(fit, key=first_item)
         except ValueError:
@@ -81,23 +85,23 @@ class MaxRects(PackingAlgorithm):
             list : list containing new maximal rectangles or an empty list
         """
         new_rects = []
-        
+
         if r.left > m.left:
-            new_rects.append(Rectangle(m.left, m.bottom, r.left-m.left, m.height))
+            new_rects.append(Rectangle(m.left, m.bottom, r.left - m.left, m.height))
         if r.right < m.right:
-            new_rects.append(Rectangle(r.right, m.bottom, m.right-r.right, m.height))
+            new_rects.append(Rectangle(r.right, m.bottom, m.right - r.right, m.height))
         if r.top < m.top:
-            new_rects.append(Rectangle(m.left, r.top, m.width, m.top-r.top))
+            new_rects.append(Rectangle(m.left, r.top, m.width, m.top - r.top))
         if r.bottom > m.bottom:
-            new_rects.append(Rectangle(m.left, m.bottom, m.width, r.bottom-m.bottom))
-        
+            new_rects.append(Rectangle(m.left, m.bottom, m.width, r.bottom - m.bottom))
+
         return new_rects
 
     def _split(self, rect):
         """
         Split all max_rects intersecting the rectangle rect into up to
         4 new max_rects.
-        
+
         Arguments:
             rect (Rectangle): Rectangle
 
@@ -125,14 +129,14 @@ class MaxRects(PackingAlgorithm):
                 contained.add(m2)
             elif m2.contains(m1):
                 contained.add(m1)
-        
+
         # Remove from max_rects
         self._max_rects = [m for m in self._max_rects if m not in contained]
 
-    def fitness(self, width, height): 
+    def fitness(self, width, height, force_rotate=False):
         """
         Metric used to rate how much space is wasted if a rectangle is placed.
-        Returns a value greater or equal to zero, the smaller the value the more 
+        Returns a value greater or equal to zero, the smaller the value the more
         'fit' is the rectangle. If the rectangle can't be placed, returns None.
 
         Arguments:
@@ -140,19 +144,19 @@ class MaxRects(PackingAlgorithm):
             height (int, float): Rectangle height
 
         Returns:
-            int, float: Rectangle fitness 
+            int, float: Rectangle fitness
             None: Rectangle can't be placed
         """
-        assert(width > 0 and height > 0)
-        
-        rect, max_rect = self._select_position(width, height)
+        assert width > 0 and height > 0
+
+        rect, max_rect = self._select_position(width, height, force_rotate)
         if rect is None:
             return None
 
         # Return fitness
         return self._rect_fitness(max_rect, rect.width, rect.height)
 
-    def add_rect(self, width, height, rid=None):
+    def add_rect(self, width, height, rid=None, force_rotate=False):
         """
         Add rectangle of widthxheight dimensions.
 
@@ -165,18 +169,18 @@ class MaxRects(PackingAlgorithm):
             Rectangle: Rectangle with placemente coordinates
             None: If the rectangle couldn be placed.
         """
-        assert(width > 0 and height >0)
+        assert width > 0 and height > 0
 
         # Search best position and orientation
-        rect, _ = self._select_position(width, height)
+        rect, _ = self._select_position(width, height, force_rotate)
         if not rect:
             return None
-        
-        # Subdivide all the max rectangles intersecting with the selected 
+
+        # Subdivide all the max rectangles intersecting with the selected
         # rectangle.
         self._split(rect)
-    
-        # Remove any max_rect contained by another 
+
+        # Remove any max_rect contained by another
         self._remove_duplicates()
 
         # Store and return rectangle position.
@@ -189,26 +193,29 @@ class MaxRects(PackingAlgorithm):
         self._max_rects = [Rectangle(0, 0, self.width, self.height)]
 
 
-
-
 class MaxRectsBl(MaxRects):
-    
-    def _select_position(self, w, h): 
+    def _select_position(self, w, h, force_rotate=False):
         """
         Select the position where the y coordinate of the top of the rectangle
-        is lower, if there are severtal pick the one with the smallest x 
+        is lower, if there are severtal pick the one with the smallest x
         coordinate
         """
-        fitn = ((m.y+h, m.x, w, h, m) for m in self._max_rects 
-                if self._rect_fitness(m, w, h) is not None)
-        fitr = ((m.y+w, m.x, h, w, m) for m in self._max_rects 
-                if self._rect_fitness(m, h, w) is not None)
+        fitn = (
+            (m.y + h, m.x, w, h, m)
+            for m in self._max_rects
+            if self._rect_fitness(m, w, h) is not None
+        )
+        fitr = (
+            (m.y + w, m.x, h, w, m)
+            for m in self._max_rects
+            if self._rect_fitness(m, h, w) is not None
+        )
 
-        if not self.rot:
+        if not self.rot and not force_rotate:
             fitr = []
 
         fit = itertools.chain(fitn, fitr)
-        
+
         try:
             _, _, w, h, m = min(fit, key=first_item)
         except ValueError:
@@ -219,26 +226,30 @@ class MaxRectsBl(MaxRects):
 
 class MaxRectsBssf(MaxRects):
     """Best Sort Side Fit minimize short leftover side"""
+
     def _rect_fitness(self, max_rect, width, height):
         if width > max_rect.width or height > max_rect.height:
             return None
 
-        return min(max_rect.width-width, max_rect.height-height)
-           
+        return min(max_rect.width - width, max_rect.height - height)
+
+
 class MaxRectsBaf(MaxRects):
     """Best Area Fit pick maximal rectangle with smallest area
     where the rectangle can be placed"""
+
     def _rect_fitness(self, max_rect, width, height):
         if width > max_rect.width or height > max_rect.height:
             return None
-        
-        return (max_rect.width*max_rect.height)-(width*height)
+
+        return (max_rect.width * max_rect.height) - (width * height)
 
 
 class MaxRectsBlsf(MaxRects):
     """Best Long Side Fit minimize long leftover side"""
+
     def _rect_fitness(self, max_rect, width, height):
         if width > max_rect.width or height > max_rect.height:
             return None
 
-        return max(max_rect.width-width, max_rect.height-height)
+        return max(max_rect.width - width, max_rect.height - height)
