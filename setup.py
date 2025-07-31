@@ -6,7 +6,7 @@ smallest number of bins."""
 
 setup(
     name="rectpack",
-    version="0.2.4",
+    version="0.2.5",
     description="2D Rectangle packing library",
     long_description=long_description,
     url="https://github.com/secnot/rectpack/",
