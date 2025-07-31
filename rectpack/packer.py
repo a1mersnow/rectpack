@@ -179,6 +179,8 @@ class PackerBBFMixin(object):
         while True:
             # can we find an unopened bin that will hold this rect?
             new_bin = self._new_open_bin(width, height, rid=rid)
+            if self.max_rect_collection:
+                new_bin._max_rects = self.max_rect_collection
             if new_bin is None:
                 return False
 
@@ -333,7 +335,8 @@ class Packer(PackerOnline):
     def _is_everything_ready(self):
         return self._avail_rect and self._avail_bins
 
-    def pack(self):
+    def pack(self, max_rect_collection=None):
+        self.max_rect_collection = max_rect_collection
         self.reset()
 
         if not self._is_everything_ready():
