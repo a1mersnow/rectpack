@@ -80,12 +80,12 @@ class BinFactory(object):
 
         return self._ref_bin.fitness(width, height, force_rotate)
 
-    def fits_inside(self, width, height):
+    def fits_inside(self, width, height, rotate=False):
         # Determine if rectangle widthxheight will fit into empty bin
         if not self._ref_bin:
             self._ref_bin = self._create_bin()
 
-        return self._ref_bin._fits_surface(width, height)
+        return self._ref_bin._fits_surface(width, height, rotate=rotate)
 
     def new_bin(self):
         if self._count > 0:
@@ -115,7 +115,9 @@ class PackerBNFMixin(object):
             # if there are no open bins, try to open a new one
             if len(self._open_bins) == 0:
                 # can we find an unopened bin that will hold this rect?
-                new_bin = self._new_open_bin(width, height, rid=rid)
+                new_bin = self._new_open_bin(
+                    width, height, rid=rid, rotate=force_rotate
+                )
                 if new_bin is None:
                     return None
 
@@ -145,7 +147,7 @@ class PackerBFFMixin(object):
 
         while True:
             # can we find an unopened bin that will hold this rect?
-            new_bin = self._new_open_bin(width, height, rid=rid)
+            new_bin = self._new_open_bin(width, height, rid=rid, rotate=force_rotate)
             if new_bin is None:
                 return None
 
@@ -178,7 +180,7 @@ class PackerBBFMixin(object):
         # Try packing into one of the empty bins
         while True:
             # can we find an unopened bin that will hold this rect?
-            new_bin = self._new_open_bin(width, height, rid=rid)
+            new_bin = self._new_open_bin(width, height, rid=rid, rotate=force_rotate)
             if new_bin is None:
                 return False
             if self.max_rect_collection:
@@ -231,7 +233,7 @@ class PackerOnline(object):
         else:
             return self._open_bins[key - len(self._closed_bins)]
 
-    def _new_open_bin(self, width=None, height=None, rid=None):
+    def _new_open_bin(self, width=None, height=None, rid=None, rotate=False):
         """
         Extract the next empty bin and append it to open bins
 
@@ -245,7 +247,7 @@ class PackerOnline(object):
         for key, binfac in self._empty_bins.items():
             # Only return the new bin if the rect fits.
             # (If width or height is None, caller doesn't know the size.)
-            if not binfac.fits_inside(width, height):
+            if not binfac.fits_inside(width, height, rotate=rotate):
                 continue
 
             # Create bin and add to open_bins
